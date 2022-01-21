@@ -3,10 +3,9 @@ import minimist from "minimist";
 import { NstrumentaClient } from "nstrumenta";
 import fs from "fs";
 import ws from "ws";
-import Cli from "./Cli";
 
 const argv = minimist(process.argv.slice(2));
-const wsUrl = argv.wsUrl;
+const wsUrl = argv.wsUrl || 'ws://localhost:8088';
 const apiKey = argv.apiKey;
 
 const debug = argv.debug ? argv.debug : false;
@@ -15,21 +14,21 @@ let serialPort: SerialPort | undefined = undefined;
 
 const nst = wsUrl ? new NstrumentaClient({ apiKey, wsUrl }) : null;
 if (nst) {
-  console.log("nst wsUrl:", wsUrl);
+  console.log("nst wsUrl:", wsUrl)
 }
 
 nst?.addListener("open", () => {
   console.log("nstrumenta open");
   scan();
 });
-// start scan if nst not set
+//start scan if nst not set
 if (!nst) {
   scan();
 }
 
 nst?.init(ws as any);
 
-const serialDevices = [
+var serialDevices = [
   {
     name: "trax2",
     vendorId: "0403",
@@ -40,7 +39,7 @@ const serialDevices = [
 
 if (fs.existsSync("nst-serialport-config.json")) {
   console.log("nst-serialport-config.json begin:");
-  const config = JSON.parse(
+  var config = JSON.parse(
     fs.readFileSync("nst-serialport-config.json", "utf8")
   );
   config.devices.forEach((element: any) => {
@@ -52,26 +51,25 @@ if (fs.existsSync("nst-serialport-config.json")) {
 
 
 function match(devicePort: SerialPort.PortInfo, device: { name?: string; vendorId: any; productId: any; baudRate?: number; path?: any; }) {
-  let match: boolean | "" | undefined = false;
-  // match on path from config file
+  var match: boolean | "" | undefined = false;
+  //match on path from config file
   if (device.path) {
-    match = device.path === devicePort.path;
+    match = device.path == devicePort.path;
   }
-  // match on vId and pId
+  //match on vId and pId
   match =
     devicePort.vendorId &&
-    devicePort.vendorId.toLowerCase() === device.vendorId &&
+    devicePort.vendorId.toLowerCase() == device.vendorId &&
     devicePort.productId &&
-    devicePort.productId.toLowerCase() === device.productId;
+    devicePort.productId.toLowerCase() == device.productId;
   return match;
 }
 
-let isFirstPort = true;
 function scan() {
   SerialPort.list().then((devicePorts) => {
     devicePorts.forEach(function (devicePort) {
       console.dir(devicePort);
-      // look for device in list
+      //look for device in list
       serialDevices.forEach((device) => {
         const serialDevice = device;
         if (match(devicePort, device)) {
@@ -84,30 +82,21 @@ function scan() {
             nst?.send("serialport-events", { "type": "open", serialDevice });
             nst?.subscribe("trax-in", (message: number[]) => {
               const bytes = new Uint8Array(message);
-              console.log("trax-in", bytes);
+              console.log("trax-in", bytes)
               serialPort?.write(Array.from(bytes));
             });
           });
-
           serialPort.on("error", function (err) {
             console.error(err);
           });
 
-          if (isFirstPort) {
-            // Only CLI for the first trax2 opened...
-            isFirstPort = false;
-            const cli = new Cli(serialPort);
-            cli.debug = true;
-            cli.start();
-          } else {
-            serialPort.on("data", function (data) {
-              switch (serialDevice.name) {
-                default:
-                  nst?.send(serialDevice.name, data);
-                  break;
-              }
-            });
-          }
+          serialPort.on("data", function (data) {
+            switch (serialDevice.name) {
+              default:
+                nst?.send(serialDevice.name, data);
+                break;
+            }
+          });
         }
       });
     });

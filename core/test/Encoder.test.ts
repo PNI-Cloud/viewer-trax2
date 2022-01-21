@@ -188,4 +188,41 @@ describe("Encoder", () => {
       0x6E, 0xDC,
     ]));
   });
+
+  it("startCal(), produces correct command.", () => {
+    const api = new Encoder();
+
+    const res = api.startCal(Protocol.CalOptionId.FullRangeCal);
+
+    expect(res).to.eql(new Uint8Array([
+      0x00, 0x09,
+      0x0A,
+      0x00, 0x00, 0x00, 0x0A,
+      0xAF, 0x06,
+    ]));
+  });
+
+  it("takeUserCalSample(), produces correct command.", () => {
+    const api = new Encoder();
+
+    const res = api.takeUserCalSample();
+
+    expect(res).to.eql(new Uint8Array([
+      0x00, 0x05,
+      0x1f,
+      0x1C, 0x2B,
+    ]));
+  });
+
+  it("stopCal), produces correct command.", () => {
+    const api = new Encoder();
+
+    const res = api.stopCal();
+
+    expect(res).to.eql(new Uint8Array([
+      0x00, 0x05,
+      0x0b,
+      0x4E, 0x9E,
+    ]));
+  });
 });

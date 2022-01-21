@@ -82,6 +82,13 @@ export class Encoder {
     ]));
   }
 
+  setUserCalAutoSampling(enabled: boolean) {
+    return this.makeCommand(Protocol.FrameId.GetConfig, new Uint8Array([
+      Protocol.ConfigId.UserCalAutoSampling,
+      (enabled) ? 1 : 0,
+    ]));
+  }
+
   resetRef() {
     return this.makeCommand(Protocol.FrameId.SetResetRef);
   }
@@ -98,6 +105,18 @@ export class Encoder {
 
   save() {
     return this.makeCommand(Protocol.FrameId.Save);
+  }
+
+  startCal(option: number) {
+    return this.makeCommand(Protocol.FrameId.StartCal, BytesUtility.uint32ToBytes(option));
+  }
+
+  takeUserCalSample() {
+    return this.makeCommand(Protocol.FrameId.TakeUserCalSample);
+  }
+
+  stopCal() {
+    return this.makeCommand(Protocol.FrameId.StopCal);
   }
 
   private makeCommand(id: number, payload: Uint8Array = new Uint8Array([])) {

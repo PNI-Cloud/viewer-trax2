@@ -19,6 +19,7 @@ export class Decoder {
   onSetConfig?: (frame: Frames.Base) => void;
   onGetDeclination?: (frame: Frames.Declination) => void;
   onGetFunctionalMode?: (frame: Frames.FunctionalMode) => void;
+  onUserCalSampleCount?: (frame: Frames.UserCalSampleCount) => void;
 
   constructor() {
     this.count = 0;
@@ -39,31 +40,37 @@ export class Decoder {
       }
       return new DataView(bytes.buffer);
     })();
-    console.log("GOT", dv.buffer);
 
-    const decodeFrame = (index: number, frameLength: number) => {
+    const decodeFrame = (index: number, frameLength: number): { success?: boolean, split? : boolean } => {
       if (frameLength === 0) {
-        return false;
+        return { success: false };
       }
+
+      // Check crc after we have a valid FrameId and a frameLength that could be valid.
+      const crc16Check = () => {
+        const crc16Expected = dv.getUint16(index + frameLength - 2, false);
+        const crc16 = calculateCrc16(new Uint8Array(dv.buffer.slice(index, index + frameLength - 2)));
+        let crc16ErrorStatus = false;
+        if (crc16 !== crc16Expected) {
+          console.log(`CRC ERROR{frameLength=${frameLength}, frameId=${frameId}, crc16xpected=${crc16Expected}, crc16Actual=${crc16}}`);
+          crc16ErrorStatus = true;
+        }
+        return { crc16Expected, crc16ErrorStatus };
+      };
 
       const frameId = dv.getUint8(index + 2);
-      const crc16Expected = dv.getUint16(index + frameLength - 2, false);
-      const crc16 = calculateCrc16(new Uint8Array(dv.buffer.slice(index, dv.byteLength - 2)));
-
-      let crc16ErrorStatus = false;
-      if (crc16 !== crc16Expected) {
-        console.log(`CRC ERROR{frameLength=${frameLength}, frameId=${frameId}, crc16xpected=${crc16Expected}, crc16Actual=${crc16}}`);
-        if (this.skipCrc8ErrorFrame) {
-          return false;
-        }
-        crc16ErrorStatus = true;
-      }
-
       switch (frameId) {
-        case Protocol.FrameId.GetModInfoResp:
+        case Protocol.FrameId.GetModInfoResp: {
           if (frameLength !== 13) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           if (typeof this.onGetModuleInfo === "function") {
             const textDecoder = new TextDecoder();
             this.onGetModuleInfo({
@@ -74,11 +81,19 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
+          return { success: true };
+        }
         case Protocol.FrameId.GetDataResp: {
           if (frameLength < 6) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           const components: Frames.Data.Component[] = [];
 
           const componentCount = dv.getUint8(index + 3);
@@ -102,7 +117,7 @@ export class Decoder {
               case Protocol.ComponentId.GyroY:
               case Protocol.ComponentId.GyroZ:
                 if (frameLength < i + 2 + 4) {
-                  return false;
+                  return { success: false };
                 }
                 components.push({
                   id: componentId,
@@ -114,7 +129,7 @@ export class Decoder {
               case Protocol.ComponentId.Distortion:
               case Protocol.ComponentId.CalStatus:
                 if (frameLength < i + 2 + 1) {
-                  return false;
+                  return { success: false };
                 }
                 components.push({
                   id: componentId,
@@ -124,7 +139,7 @@ export class Decoder {
                 break;
               case Protocol.ComponentId.Quaternion:
                 if (frameLength < i + 2 + 16) {
-                  return false;
+                  return { success: false };
                 }
                 components.push({
                   id: componentId,
@@ -152,17 +167,24 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
+          return { success: true };
         }
         case Protocol.FrameId.GetConfigResp: {
           if (frameLength < 7) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           const configId = dv.getUint8(index + 3);
           switch (configId) {
             case Protocol.ConfigId.Declination: {
               if (frameLength !== 10) {
-                return false;
+                return { success: false };
               }
               if (typeof this.onGetDeclination === "function") {
                 this.onGetDeclination({
@@ -172,16 +194,44 @@ export class Decoder {
                   crc16Expected,
                 });
               }
-              return true;
+              return { success: true };
             }
             default:
-              return false;
+              return { success: true };
           }
         }
-        case Protocol.FrameId.SetConfigDone:
-          if (frameLength !== 5) {
-            return false;
+        case Protocol.FrameId.UserCalSampleCount: {
+          if (frameLength !== 9) {
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
+          if (typeof this.onUserCalSampleCount === "function") {
+            this.onUserCalSampleCount({
+              count: dv.getUint32(index + 3),
+              id: frameId,
+              crc16ErrorStatus,
+              crc16Expected,
+            });
+          }
+          return { success: true };
+        }
+        case Protocol.FrameId.SetConfigDone:{
+          if (frameLength !== 5) {
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
+          }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           if (typeof this.onSetConfig === "function") {
             this.onSetConfig({
               id: frameId,
@@ -189,11 +239,19 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
-        case Protocol.FrameId.SerialNumberResp:
+          return { success: true };
+        }
+        case Protocol.FrameId.SerialNumberResp:{
           if (frameLength !== 9) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           if (typeof this.onGetSerialNumber === "function") {
             this.onGetSerialNumber({
               serialNumber: dv.getUint32(index + 3),
@@ -202,11 +260,19 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
-        case Protocol.FrameId.SetAcqParamsDone:
+          return { success: true };
+        }
+        case Protocol.FrameId.SetAcqParamsDone:{
           if (frameLength !== 5) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           if (typeof this.onSetAcquisitionParams === "function") {
             this.onSetAcquisitionParams({
               id: frameId,
@@ -214,11 +280,19 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
-        case Protocol.FrameId.GetAcqParamsResp:
+          return { success: true };
+        }
+        case Protocol.FrameId.GetAcqParamsResp:{
           if (frameLength !== 15) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           if (typeof this.onGetAcquisitionParams === "function") {
             this.onGetAcquisitionParams({
               isPollMode: dv.getUint8(index + 3) !== 0,
@@ -229,11 +303,19 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
-        case Protocol.FrameId.GetFunctionalModeResp:
+          return { success: true };
+        }
+        case Protocol.FrameId.GetFunctionalModeResp:{
           if (frameLength !== 6) {
-            return false;
+            return { success: false };
+          } else if (bufferIndex + frameLength > dv.byteLength) {
+            return { split: true };
           }
+          const { crc16Expected, crc16ErrorStatus } = crc16Check();
+          if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
+            return { success: false };
+          }
+
           if (typeof this.onGetFunctionalMode === "function") {
             this.onGetFunctionalMode({
               isAhrsMode: dv.getUint8(index + 3) !== 0,
@@ -242,23 +324,24 @@ export class Decoder {
               crc16Expected,
             });
           }
-          return true;
+          return { success: true };
+        }
         default:
-          console.log("Unhandled FrameId: ", frameId);
-          return false;
+          // console.log("Unhandled FrameId: ", frameId);
+          return { success: false };
       }
     };
 
     let bufferIndex = 0;
     while (this.isProcessing && bufferIndex < dv.byteLength - 3) {
       const frameLength = dv.getUint16(bufferIndex);
-      if (bufferIndex + frameLength > dv.byteLength) {
+      const decodeStatus = decodeFrame(bufferIndex, frameLength);
+      if (decodeStatus.split) {
         // The current frame is split into at least 2 chuncks...
         break;
       }
 
-      const decodeSuccess = decodeFrame(bufferIndex, frameLength);
-      if (decodeSuccess) {
+      if (decodeStatus.success) {
         bufferIndex += frameLength;
       } else {
         bufferIndex++; // Move to next index and hope it aligns itself...
@@ -318,5 +401,9 @@ export namespace Frames {
 
   export interface FunctionalMode extends Base {
     isAhrsMode: boolean;
+  }
+
+  export interface UserCalSampleCount extends Base {
+    count: number;
   }
 }

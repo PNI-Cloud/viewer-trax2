@@ -269,4 +269,52 @@ describe("Decoder", () => {
       crc16ErrorStatus: false,
     });
   });
+
+  it("decode(), [FrameId.UserCalSampleCount, FrameId.GetDataResp], correct crc16 and output", () => {
+    const bytes = new Uint8Array([
+      0x02, 0x54, 0x52, 0x41, 0x58, 0x50, 0x37, 0x33, 0x34, 0x2B, 0x91, // Gargabe
+      0x00, 0x09,
+      0x11,
+      0x00, 0x00, 0x00, 0x00,
+      0xe6, 0xe9,
+      0x00, 0x15,
+      0x05,
+      0x03,
+      0x05, 0x42, 0x7c, 0x89, 0x60,
+      0x18, 0x40, 0x8e, 0x7d, 0x22,
+      0x19, 0xc0, 0xc2, 0x89, 0x1c,
+      0x85, 0x4a,
+    ]);
+    const decoder = new Decoder();
+
+    const res: object[] = [];
+    decoder.onUserCalSampleCount = (frame) => {
+      res.push(frame);
+    };
+    decoder.onGetData = (frame) => {
+      res.push(frame);
+    };
+    decoder.decode(bytes);
+
+    chai.expect(res).to.almost.eql([{
+      count: 0,
+      id: Protocol.FrameId.UserCalSampleCount,
+      crc16Expected: 0xe6e9,
+      crc16ErrorStatus: false,
+    }, {
+      components: [{
+        id: Protocol.ComponentId.Heading,
+        values: [63.1341553],
+      }, {
+        id: Protocol.ComponentId.Pitch,
+        values: [4.452775],
+      }, {
+        id: Protocol.ComponentId.Roll,
+        values: [-6.079237],
+      }],
+      id: Protocol.FrameId.GetDataResp,
+      crc16Expected: 0x854a,
+      crc16ErrorStatus: false,
+    }]);
+  });
 });
