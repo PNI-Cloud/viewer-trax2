@@ -7,6 +7,7 @@ import ws from "ws";
 const argv = minimist(process.argv.slice(2));
 const wsUrl = argv.wsUrl || 'ws://localhost:8088';
 const apiKey = argv.apiKey;
+console.log(wsUrl, apiKey)
 
 const debug = argv.debug ? argv.debug : false;
 
@@ -17,16 +18,26 @@ if (nst) {
   console.log("nst wsUrl:", wsUrl)
 }
 
+const openPorts: { [name: string]: { open: boolean } } = { };
 nst?.addListener("open", () => {
   console.log("nstrumenta open");
+
+  nst?.subscribe("list-open-ports", () => {
+    nst?.send("list-open-ports-resp", openPorts);
+  });
+
   scan();
 });
 //start scan if nst not set
 if (!nst) {
   scan();
 }
+try {
+  nst?.init(ws as any);
+} catch (ex) {
+  console.log('failed...', ex)
+}
 
-nst?.init(ws as any);
 
 var serialDevices = [
   {
@@ -79,6 +90,7 @@ function scan() {
           });
 
           serialPort.on("open", function () {
+            openPorts[devicePort.path] = { open: true };
             nst?.send("serialport-events", { "type": "open", serialDevice });
             nst?.subscribe("trax-in", (message: number[]) => {
               const bytes = new Uint8Array(message);
@@ -88,11 +100,17 @@ function scan() {
           });
           serialPort.on("error", function (err) {
             console.error(err);
+            nst?.send("serialport-events", { "type": "error", serialDevice, value: err });
+          });
+          serialPort.on("close", () => {
+            nst?.send("serialport-events", { "type": "close", serialDevice });
+            openPorts[devicePort.path] = { open: false };
           });
 
           serialPort.on("data", function (data) {
             switch (serialDevice.name) {
               default:
+                console.log('sending', serialDevice.name, data)
                 nst?.send(serialDevice.name, data);
                 break;
             }

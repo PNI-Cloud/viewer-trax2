@@ -1,5 +1,5 @@
 import * as Protocol from "./Protocol";
-import calculateCrc16 from "./calculateCrc16";
+import { calculateCrc16 } from "./calculateCrc16";
 
 /**
  * Trax2 response data decoder.
@@ -161,6 +161,7 @@ export class Decoder {
 
           if (typeof this.onGetData === "function") {
             this.onGetData({
+              raw: new Uint8Array(dv.buffer.slice(index, index + frameLength)),
               components,
               id: frameId,
               crc16ErrorStatus,
@@ -391,6 +392,7 @@ export namespace Frames {
   }
   export interface Data extends Base {
     components: Data.Component[];
+    raw: Uint8Array;
   }
 
   export interface AcquisitionParams extends Base {

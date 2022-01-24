@@ -1,5 +1,5 @@
 import * as Protocol from "./Protocol";
-import calculateCrc16 from "./calculateCrc16";
+import { calculateCrc16 } from "./calculateCrc16";
 import { BytesUtility } from "./BytesUtility";
 
 /**

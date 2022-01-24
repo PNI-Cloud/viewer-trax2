@@ -1,12 +1,13 @@
 {
-  "name": "core",
+  "name": "trax2core",
   "version": "1.0.0",
   "description": "Core TRAX2 functionality.",
-  "main": "index.js",
+  "main": "dist/index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
+    "build": "npx tsc --project .",
     "lint": "eslint . --ext .ts",
     "test": "mocha -r ts-node/register test/*.ts"
   },

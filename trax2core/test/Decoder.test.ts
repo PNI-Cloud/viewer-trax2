@@ -196,6 +196,7 @@ describe("Decoder", () => {
         id: Protocol.ComponentId.HeadingStatus,
         values: [1],
       }],
+      raw: new Uint8Array([...bytes1, ...bytes2, ...bytes3]),
       id: Protocol.FrameId.GetDataResp,
       crc16Expected: 0xA23E,
       crc16ErrorStatus: false,
@@ -302,6 +303,7 @@ describe("Decoder", () => {
       crc16Expected: 0xe6e9,
       crc16ErrorStatus: false,
     }, {
+      raw: bytes.slice(20, bytes.byteLength),
       components: [{
         id: Protocol.ComponentId.Heading,
         values: [63.1341553],

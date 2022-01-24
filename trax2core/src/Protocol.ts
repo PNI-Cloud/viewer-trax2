@@ -1,4 +1,3 @@
-
 export enum FrameId {
   GetModInfo = 1, // Queries the device’s type and firmware revision.
   GetModInfoResp = 2, // Response to GetModInfo
@@ -73,9 +72,9 @@ export enum MergeRateId {
 
 export enum ComponentId {
   Heading = 5,
+  Temperature = 7,
   Distortion = 8,
   CalStatus = 9,
-  Temperature = 7,
   AccelX = 21,
   AccelY = 22,
   AccelZ = 23,

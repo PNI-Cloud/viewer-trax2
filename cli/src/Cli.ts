@@ -2,9 +2,9 @@ import readline from "readline";
 
 import Commander from "commander";
 
-import { Encoder } from "../../core/src/Encoder";
-import { Decoder } from "../../core/src/Decoder";
-import * as Protocol from "../../core/src/Protocol";
+import { Encoder } from "../../trax2core/src/Encoder";
+import { Decoder } from "../../trax2core/src/Decoder";
+import * as Protocol from "../../trax2core/src/Protocol";
 
 // This doesn't hook into Nstrumenta yet. That is TODO.
 export default class Cli {

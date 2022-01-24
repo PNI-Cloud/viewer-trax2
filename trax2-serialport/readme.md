@@ -1,5 +1,7 @@
 ## npm install and npm run start
 
+npm start --  --wsUrl=ws://localhost:8088 --apiKey=xxxxx-xxxx-xxx
+
 Clone or copy the repository to your raspberry pi and install dependencies with `npm install`
 
 ```shell
