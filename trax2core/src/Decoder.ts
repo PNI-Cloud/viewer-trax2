@@ -11,6 +11,9 @@ export class Decoder {
   skipCrc8ErrorFrame: boolean;
   private unprocessedBytes?: Uint8Array;
 
+  unprocessedByteLimit = 1500;
+  unprocessedByteTruncation = 200;
+
   onGetModuleInfo?: (frame: Frames.ModuleInfo) => void;
   onGetSerialNumber?: (frame: Frames.SerialNumber) => void;
   onSetAcquisitionParams?: (frame: Frames.Base) => void;
@@ -32,6 +35,11 @@ export class Decoder {
 
     const dv = (() => {
       if (this.unprocessedBytes) {
+        // Failsafe for there being too many unprocessed bytes.
+        if (this.unprocessedBytes.byteLength >= this.unprocessedByteLimit) {
+          this.unprocessedBytes = new Uint8Array(this.unprocessedBytes.buffer.slice(this.unprocessedByteTruncation));
+        }
+
         const combinedBytes = new Uint8Array(this.unprocessedBytes.byteLength + bytes.byteLength);
         combinedBytes.set(this.unprocessedBytes, 0);
         combinedBytes.set(bytes, this.unprocessedBytes.byteLength);
@@ -40,8 +48,9 @@ export class Decoder {
       }
       return new DataView(bytes.buffer);
     })();
+    // console.log(`>>>>, (${dv.byteLength}) [${new Uint8Array(dv.buffer).toString()}]`);
 
-    const decodeFrame = (index: number, frameLength: number): { success?: boolean, split? : boolean } => {
+    const decodeFrame = (index: number, frameLength: number): { success?: boolean, split? : boolean, crc16Failed?: boolean } => {
       if (frameLength === 0) {
         return { success: false };
       }
@@ -68,7 +77,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onGetModuleInfo === "function") {
@@ -91,7 +100,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           const components: Frames.Data.Component[] = [];
@@ -178,7 +187,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           const configId = dv.getUint8(index + 3);
@@ -209,7 +218,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onUserCalSampleCount === "function") {
@@ -230,7 +239,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onSetConfig === "function") {
@@ -250,7 +259,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onGetSerialNumber === "function") {
@@ -271,7 +280,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onSetAcquisitionParams === "function") {
@@ -291,7 +300,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onGetAcquisitionParams === "function") {
@@ -314,7 +323,7 @@ export class Decoder {
           }
           const { crc16Expected, crc16ErrorStatus } = crc16Check();
           if (crc16ErrorStatus && this.skipCrc8ErrorFrame) {
-            return { success: false };
+            return { crc16Failed: true };
           }
 
           if (typeof this.onGetFunctionalMode === "function") {
@@ -342,7 +351,7 @@ export class Decoder {
         break;
       }
 
-      if (decodeStatus.success) {
+      if (decodeStatus.success || decodeStatus.crc16Failed) {
         bufferIndex += frameLength;
       } else {
         bufferIndex++; // Move to next index and hope it aligns itself...

@@ -4,37 +4,46 @@
   "homepage": "./",
   "private": true,
   "dependencies": {
-    "@emotion/react": "^11.7.0",
-    "@emotion/styled": "^11.6.0",
-    "@mui/material": "^5.2.3",
-    "@testing-library/jest-dom": "^5.16.1",
-    "@testing-library/react": "^11.2.7",
-    "@testing-library/user-event": "^12.8.3",
-    "@types/jest": "^26.0.24",
-    "@types/node": "^12.20.37",
-    "@types/react": "^17.0.37",
-    "@types/react-dom": "^17.0.11",
-    "crc": "^3.8.0",
-    "node-crc16": "^2.0.7",
-    "nstrumenta": "^1.0.48",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-scripts": "^5.0.0",
+    "@emotion/react": "11.7.1",
+    "@emotion/styled": "11.6.0",
+    "@mui/material": "5.3.1",
+    "file-saver": "2.0.5",
+    "nstrumenta": "1.0.48",
+    "react": "17.0.2",
+    "react-collapse": "5.1.1",
+    "react-dom": "17.0.2",
+    "react-modal": "3.14.4",
     "trax2core": "file:../trax2core",
-    "typescript": "^4.5.4",
-    "web-vitals": "^1.1.2"
+    "web-vitals": "2.1.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "5.16.1",
+    "@testing-library/react": "12.1.2",
+    "@testing-library/user-event": "13.5.0",
+    "@types/file-saver": "2.0.5",
+    "@types/jest": "27.4.0",
+    "@types/node": "17.0.10",
+    "@types/react": "17.0.38",
+    "@types/react-collapse": "5.0.1",
+    "@types/react-dom": "17.0.11",
+    "@types/react-modal": "3.13.1",
+    "@typescript-eslint/eslint-plugin": "5.10.1",
+    "@typescript-eslint/parser": "5.10.1",
+    "eslint": "8.7.0",
+    "eslint-config-airbnb": "19.0.4",
+    "eslint-plugin-import": "2.25.4",
+    "eslint-plugin-jsx-a11y": "6.5.1",
+    "eslint-plugin-react": "7.28.0",
+    "eslint-plugin-react-hooks": "4.3.0",
+    "react-scripts": "5.0.0",
+    "typescript": "4.5.5"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "lint": "eslint . --ext .js,.ts,.tsx",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
   },
   "browserslist": {
     "production": [
@@ -47,8 +56,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "@types/crc": "^3.4.0"
   }
 }

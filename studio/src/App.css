@@ -1,0 +1,11 @@
+.acq-params-grid {
+    display: grid;
+    grid-auto-columns: max-content auto;
+    column-gap: 16px;
+}
+.acq-params-grid-name {
+    grid-column: 1 / 2;
+}
+.acq-params-grid-input {
+    grid-column: 2 / 3;
+}

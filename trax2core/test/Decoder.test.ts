@@ -319,4 +319,69 @@ describe("Decoder", () => {
       crc16ErrorStatus: false,
     }]);
   });
+
+  describe("Two FrameId.GetDataResp tests.", () => {
+    const bytes1 = new Uint8Array([
+      0, 23, 5, 1, 77, 188, 191, 55, 228, 60, 154, 195, 77, 62, 155, 28, 124, 63, // Quaternion 1st part
+    ]);
+    const bytes2 = new Uint8Array([
+      115, 217, 47, 221, 2, // Quaternion 2nd part
+      0, 11, 5, 1, 7, 65, 200, 128, 0, 1, 154, // Temperature
+    ]);
+
+    it("decode(), default settings, 2 valid frames", () => {
+      const decoder = new Decoder();
+
+      const res: object[] = [];
+      decoder.onGetData = (frame) => {
+        res.push(frame);
+      };
+      decoder.decode(bytes1);
+      decoder.decode(bytes2);
+
+      chai.expect(res).to.almost.eql([{
+        raw: new Uint8Array([...bytes1, ...bytes2.slice(0, 5)]),
+        components: [{
+          id: Protocol.ComponentId.Quaternion,
+          values: [-0.0233420, 0.01889195, 0.3029516, 0.9525327],
+        }],
+        id: Protocol.FrameId.GetDataResp,
+        crc16Expected: 0xDD02,
+        crc16ErrorStatus: false,
+      }, {
+        raw: bytes2.slice(5),
+        components: [{
+          id: Protocol.ComponentId.Temperature,
+          values: [25.0625],
+        }],
+        id: Protocol.FrameId.GetDataResp,
+        crc16Expected: 0x019A,
+        crc16ErrorStatus: false,
+      }]);
+    });
+
+    it("decode(), unprocessedByteLimit=15, unprocessedByteTruncation=10, 1 valid frame", () => {
+      const decoder = new Decoder();
+      decoder.unprocessedByteLimit = 15;
+      decoder.unprocessedByteTruncation = 10;
+
+      const res: object[] = [];
+      decoder.onGetData = (frame) => {
+        res.push(frame);
+      };
+      decoder.decode(bytes1);
+      decoder.decode(bytes2);
+
+      chai.expect(res).to.eql([{
+        raw: bytes2.slice(5),
+        components: [{
+          id: Protocol.ComponentId.Temperature,
+          values: [25.0625],
+        }],
+        id: Protocol.FrameId.GetDataResp,
+        crc16Expected: 0x019A,
+        crc16ErrorStatus: false,
+      }]);
+    });
+  });
 });
